@@ -1,23 +1,22 @@
 {
   "domain": "neewer_gl25b",
   "name": "Neewer GL25B",
-  "version": "0.1.0",
-  "documentation": "https://github.com/kgleeson/neewergl25bhass",
-  "issue_tracker": "https://github.com/kgleeson/neewergl25bhass/issues",
   "codeowners": [
     "@kgleeson"
   ],
   "config_flow": true,
+  "documentation": "https://github.com/kgleeson/NeewerGL25BHASS",
+  "integration_type": "device",
+  "iot_class": "assumed_state",
+  "issue_tracker": "https://github.com/kgleeson/NeewerGL25BHASS/issues",
   "requirements": [
     "hidapi==0.15.0"
   ],
-  "homeassistant": "2024.1.0",
-  "integration_type": "device",
-  "iot_class": "local_push",
   "usb": [
     {
       "vid": "0581",
       "pid": "011D"
     }
-  ]
+  ],
+  "version": "0.2.0"
 }
