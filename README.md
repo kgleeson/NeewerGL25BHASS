@@ -10,11 +10,13 @@ This integration is local-only. It does not use cloud access, Bluetooth, shell c
 - Supports turn on, turn off, brightness, and color temperature.
 - Uses the official USB HID dongle directly through Python `hidapi`.
 - Runs blocking HID writes in Home Assistant executor jobs.
-- Avoids duplicate writes when the requested state is already the current in-memory state.
+- Restores the last known on/off state, brightness, and color temperature after a Home Assistant restart.
+- Detects the dongle being unplugged or plugged back in (checked every 30 seconds) and reconnects automatically.
+- Discovers the dongle over USB when it is plugged in.
 
 ## Requirements
 
-- Home Assistant Core with custom integrations enabled.
+- Home Assistant 2025.2 or newer, with custom integrations enabled.
 - The Neewer GL25B official USB HID dongle visible inside Home Assistant Core.
 - USB VID/PID: `0581:011d`.
 - Python package `hidapi`; Home Assistant should install this automatically from `manifest.json`.
@@ -27,11 +29,11 @@ No true discrete hardware on/off command is currently known. The integration han
 - Turn on restores the last known brightness, or uses the brightness provided by Home Assistant.
 - The raw hardware toggle command exists in the controller and test script, but normal Home Assistant light on/off handling does not use it.
 
-State is assumed because the dongle/light does not provide known readable state feedback.
+State is assumed because the dongle/light does not provide known readable state feedback. Changes made with the light's own controls are not seen by Home Assistant, so every turn on, turn off, brightness, and color temperature request is always sent to the light, even when it matches the state Home Assistant already assumes.
 
 Color temperature is set in 100K steps. The integration accepts any Kelvin value in the supported range and rounds down to the nearest 100K when sending to the device (e.g. 5650K is sent as 5600K), because the dongle's packet format only carries `kelvin / 100`.
 
-Only one GL25B can be configured per Home Assistant instance. The integration uses the USB VID/PID as the unique device ID, which is the same for every GL25B dongle. Attempting to add a second dongle will be silently blocked. To replace a dongle, delete the existing config entry first and re-add it.
+Only one GL25B can be configured per Home Assistant instance. The integration uses the USB VID/PID as the unique device ID, which is the same for every GL25B dongle. Attempting to add a second dongle aborts with an "already configured" message. To replace a dongle, delete the existing config entry first and re-add it.
 
 ## Installation Through HACS
 
@@ -52,9 +54,9 @@ The USB dongle must be visible inside the Home Assistant Core environment, not j
 The confirmed working method is:
 
 - Import `hidapi` as `hid`.
-- Open using `dev.open(0x0581, 0x011D)`.
+- Find the dongle with `hid.enumerate(0x0581, 0x011D)` and open it with `dev.open_path(path)`. Opening by VID/PID with `dev.open(...)` often fails on Linux/hidraw even when the device is listed.
+- Keep the device open between commands rather than reopening it for each one.
 - Write exactly 64 bytes with `dev.write(packet)`.
-- Do not use `open_path`.
 - Do not use `send_feature_report`.
 - Do not prepend a report ID byte.
 - Do not use 45-byte packets.
@@ -97,6 +99,27 @@ On Linux, permission errors usually mean Home Assistant cannot access `/dev/hidr
 
 If installation fails because `hidapi` cannot build or install, check the Home Assistant logs for package installation errors. Home Assistant Core should install `hidapi` automatically from this integration's manifest requirements.
 
+## Development
+
+Test the dongle without Home Assistant:
+
+```bash
+pip install hidapi
+python3 tools/test_dongle.py brightness 50
+python3 tools/test_dongle.py temp 5600
+```
+
+Run the test suite:
+
+```bash
+pip install -r requirements_test.txt
+pytest
+```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
+
 ## Credits
 
-This integration’s USB HID packet handling is derived from AugusDogus’ reverse-engineering of the Neewer 2.4 GHz USB dongle in [`neweer-tray`](https://github.com/AugusDogus/neweer-tray) and the related write-up, [“Reverse Engineering My Studio Lights in an Afternoon”](https://www.augie.gg/blog/reverse-engineering-neewer-lights). GL25B-specific brightness and colour-temperature packet examples are credited to @4noxx in [`taburineagle/NeewerLite-Python` issue #105](https://github.com/taburineagle/NeewerLite-Python/issues/105).
+This integration’s USB HID packet handling is derived from AugusDogus’ reverse-engineering of the Neewer 2.4 GHz USB dongle in [`neweer-tray`](https://github.com/AugusDogus/neweer-tray). GL25B-specific brightness and colour-temperature packet examples are credited to @4noxx in [`taburineagle/NeewerLite-Python` issue #105](https://github.com/taburineagle/NeewerLite-Python/issues/105).
